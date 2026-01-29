@@ -192,18 +192,27 @@ const App: React.FC = () => {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (isMounted) {
-        // Para eventos subsequentes, mantemos a lógica, mas idealmente deveríamos proteger aqui também
-        if (session) {
-          // Aqui assumimos que se o session vier do onAuthStateChange, atualizamos
-          // Mas fetchUserProfile vai rodar e pode deslogar se falhar
-          setSession(session);
-          await fetchUserProfile(session.user.id);
-        } else {
-          setSession(null);
-          setUserProfile(null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+
+      if (event === 'SIGNED_OUT' || !session) {
+        setSession(null);
+        setUserProfile(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || (session && !userProfile)) {
+        setAuthLoading(true);
+        const profile = await fetchUserProfile(session.user.id);
+        if (isMounted) {
+          if (profile) {
+            setSession(session);
+          }
+          setAuthLoading(false);
         }
+      } else if (event === 'TOKEN_REFRESHED') {
+        setSession(session);
       }
     });
 
