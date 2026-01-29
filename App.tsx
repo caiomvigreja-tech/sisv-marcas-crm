@@ -135,8 +135,8 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error("Erro fetch perfil:", err);
-      setAuthError('Erro ao carregar perfil. Faça login novamente.');
-      await supabase.auth.signOut();
+      setAuthError('Erro ao carregar perfil. Verifique sua conexão e tente novamente.');
+      // await supabase.auth.signOut(); // Removed to prevent logout on network error
       setSession(null);
       return null;
     }
