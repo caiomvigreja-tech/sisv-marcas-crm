@@ -158,6 +158,7 @@ const App: React.FC = () => {
             setSession(null);
             setUserProfile(null);
             setAuthLoading(false);
+            supabase.auth.signOut(); // Clear stale session
           }
         }, 8000);
 
