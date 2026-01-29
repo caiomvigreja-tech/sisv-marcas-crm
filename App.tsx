@@ -392,13 +392,27 @@ const App: React.FC = () => {
       {authError && (
         <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-2xl max-w-md">
           <p className="text-xs font-bold text-rose-600 mb-3 text-center">{authError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-orange-700 transition-all flex items-center justify-center gap-2"
-          >
-            <RefreshCcw size={14} />
-            Tentar Novamente
-          </button>
+          <div className="flex gap-2 w-full">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 bg-orange-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-orange-700 transition-all flex items-center justify-center gap-2"
+            >
+              <RefreshCcw size={14} />
+              Tentar Novamente
+            </button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                setSession(null);
+                setUserProfile(null);
+              }}
+              className="px-4 py-2 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
+              title="Sair da conta"
+            >
+              <LogOut size={14} />
+              Sair
+            </button>
+          </div>
         </div>
       )}
     </div>
