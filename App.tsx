@@ -145,22 +145,11 @@ const App: React.FC = () => {
   // --- AUTH & SUBSCRIPTION ---
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | undefined;
     let isMounted = true;
 
     const init = async () => {
       try {
-        // Timeout de segurança: 8 segundos
-        timeoutId = setTimeout(() => {
-          if (isMounted) {
-            console.error('Auth timeout: forçando fim do loading');
-            setAuthError('Tempo limite de autenticação excedido. Tente novamente.');
-            setSession(null);
-            setUserProfile(null);
-            setAuthLoading(false);
-            supabase.auth.signOut(); // Clear stale session
-          }
-        }, 8000);
+
 
         const { data: { session: fetchedSession }, error } = await supabase.auth.getSession();
 
@@ -179,7 +168,6 @@ const App: React.FC = () => {
           // Se não tiver sessão (fetchedSession null), o estado session já é null (inicial)
         }
 
-        if (timeoutId) clearTimeout(timeoutId);
         if (isMounted) setAuthLoading(false);
       } catch (err) {
         console.error('Erro na inicialização:', err);
@@ -187,7 +175,6 @@ const App: React.FC = () => {
           setAuthError('Erro ao inicializar aplicação. Verifique sua conexão.');
           setAuthLoading(false);
         }
-        if (timeoutId) clearTimeout(timeoutId);
       }
     };
 
@@ -220,7 +207,6 @@ const App: React.FC = () => {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
