@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterVendedor, setFilterVendedor] = useState<string>('all');
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -74,23 +75,30 @@ const App: React.FC = () => {
     history: Array.isArray(data.historico) ? data.historico : []
   });
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (abortSignal?: AbortSignal) => {
     if (!session) return;
+    if (abortSignal?.aborted) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (abortSignal?.aborted) return;
+
       if (!error && data) {
         const mappedLeads = data.map(mapLead);
         setLeads(mappedLeads);
         return mappedLeads;
       }
     } catch (err) {
+      if (abortSignal?.aborted) return;
       console.error("Erro fetch leads:", err);
     } finally {
-      setLoading(false);
+      if (!abortSignal?.aborted) {
+        setLoading(false);
+      }
     }
     return [];
   };
@@ -134,15 +142,18 @@ const App: React.FC = () => {
   // --- AUTH & SUBSCRIPTION ---
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | undefined;
+    let isMounted = true;
 
     const init = async () => {
       try {
         // Timeout de segurança: 10 segundos
         timeoutId = setTimeout(() => {
-          console.error('Auth timeout: forçando fim do loading');
-          setAuthError('Tempo limite de autenticação excedido. Tente novamente.');
-          setAuthLoading(false);
+          if (isMounted) {
+            console.error('Auth timeout: forçando fim do loading');
+            setAuthError('Tempo limite de autenticação excedido. Tente novamente.');
+            setAuthLoading(false);
+          }
         }, 10000);
 
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -151,30 +162,37 @@ const App: React.FC = () => {
           throw error;
         }
 
-        setSession(session);
-        if (session) {
-          await fetchUserProfile(session.user.id);
+        if (isMounted) {
+          setSession(session);
+          if (session) {
+            await fetchUserProfile(session.user.id);
+          }
         }
 
-        clearTimeout(timeoutId);
-        setAuthLoading(false);
+        if (timeoutId) clearTimeout(timeoutId);
+        if (isMounted) setAuthLoading(false);
       } catch (err) {
         console.error('Erro na inicialização:', err);
-        setAuthError('Erro ao inicializar aplicação. Verifique sua conexão.');
-        clearTimeout(timeoutId);
-        setAuthLoading(false);
+        if (isMounted) {
+          setAuthError('Erro ao inicializar aplicação. Verifique sua conexão.');
+          setAuthLoading(false);
+        }
+        if (timeoutId) clearTimeout(timeoutId);
       }
     };
 
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) await fetchUserProfile(session.user.id);
-      else setUserProfile(null);
+      if (isMounted) {
+        setSession(session);
+        if (session) await fetchUserProfile(session.user.id);
+        else setUserProfile(null);
+      }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
     };
@@ -182,14 +200,33 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (session && userProfile) {
-      fetchLeads();
+      const abortController = new AbortController();
+      fetchLeads(abortController.signal);
       fetchVendedores();
-      const channel = supabase.channel('crm_realtime')
-        .on('postgres_changes', { event: '*', table: 'leads' }, () => fetchLeads())
+
+      const channel = supabase
+        .channel('crm_realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'leads' },
+          () => fetchLeads(abortController.signal)
+        )
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
+
+      return () => {
+        abortController.abort();
+        supabase.removeChannel(channel);
+      };
     }
   }, [session, userProfile]);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // --- ACTIONS ---
 
@@ -288,9 +325,9 @@ const App: React.FC = () => {
 
   const filteredLeads = useMemo(() => {
     return leads.filter(l => {
-      // 1. Busca por texto
-      const matchSearch = l.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        l.brandName?.toLowerCase().includes(searchQuery.toLowerCase());
+      // 1. Busca por texto (usando debounced query)
+      const matchSearch = l.name?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        l.brandName?.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
 
       // 2. Filtro de permissão (Vendedor só vê o dele ou sem dono)
       if (!isAdmin) {
@@ -302,7 +339,7 @@ const App: React.FC = () => {
 
       return matchSearch && matchVendedor;
     });
-  }, [leads, searchQuery, filterVendedor, isAdmin, userProfile]);
+  }, [leads, debouncedSearchQuery, filterVendedor, isAdmin, userProfile]);
 
   // --- STATS REACTIVE TO FILTERS ---
 

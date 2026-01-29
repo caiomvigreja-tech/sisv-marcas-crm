@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { Lead, LeadStatus } from '../types';
-import { 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
   Calendar as CalendarIcon,
   Clock,
   Briefcase,
@@ -44,9 +44,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
 
   const isToday = (d: Date) => {
     const today = new Date();
-    return d.getDate() === today.getDate() && 
-           d.getMonth() === today.getMonth() && 
-           d.getFullYear() === today.getFullYear();
+    return d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear();
   };
 
   const formatMonthYear = (d: Date) => {
@@ -60,9 +60,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
         // Regra Rigorosa: Só aparece se for status Reunião Agendada + Data coincidente
         if (!l.reunionDate || l.status !== LeadStatus.REUNIAO_AGENDADA) return false;
         const rd = new Date(l.reunionDate);
-        return rd.getDate() === day.getDate() && 
-               rd.getMonth() === day.getMonth() && 
-               rd.getFullYear() === day.getFullYear();
+        return rd.getDate() === day.getDate() &&
+          rd.getMonth() === day.getMonth() &&
+          rd.getFullYear() === day.getFullYear();
       })
       .sort((a, b) => {
         const timeA = new Date(a.reunionDate!).getTime();
@@ -74,7 +74,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xl animate-in fade-in duration-300">
       <div className="bg-slate-50 w-full max-w-[95vw] h-[90vh] rounded-[3rem] shadow-2xl border border-white/20 overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-        
+
         {/* Header da Agenda */}
         <div className="p-10 pb-6 flex flex-col md:flex-row justify-between items-center gap-6 bg-white border-b border-slate-100">
           <div className="flex items-center gap-6">
@@ -92,19 +92,19 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
           </div>
 
           <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-            <button 
+            <button
               onClick={() => navigateWeek(-1)}
               className="p-3 text-slate-400 hover:text-orange-600 hover:bg-white rounded-xl transition-all shadow-sm active:scale-95"
             >
               <ChevronLeft size={20} />
             </button>
-            <button 
+            <button
               onClick={() => setCurrentDate(new Date())}
               className="px-6 py-2 text-[11px] font-black text-slate-600 uppercase tracking-widest hover:text-orange-600 transition-all"
             >
               Hoje
             </button>
-            <button 
+            <button
               onClick={() => navigateWeek(1)}
               className="p-3 text-slate-400 hover:text-orange-600 hover:bg-white rounded-xl transition-all shadow-sm active:scale-95"
             >
@@ -112,7 +112,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
             </button>
           </div>
 
-          <button 
+          <button
             onClick={onClose}
             className="p-3 text-slate-300 hover:text-slate-500 hover:bg-slate-100 rounded-2xl transition-all"
           >
@@ -128,13 +128,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
               const activeDay = isToday(day);
 
               return (
-                <div 
-                  key={idx} 
-                  className={`flex-1 flex flex-col min-w-[200px] rounded-[2rem] transition-all border ${
-                    activeDay 
-                    ? 'bg-orange-50/30 border-orange-200 shadow-lg shadow-orange-100/50' 
-                    : 'bg-white/50 border-slate-100'
-                  }`}
+                <div
+                  key={idx}
+                  className={`flex-1 flex flex-col min-w-[200px] rounded-[2rem] transition-all border ${activeDay
+                      ? 'bg-orange-50/30 border-orange-200 shadow-lg shadow-orange-100/50'
+                      : 'bg-white/50 border-slate-100'
+                    }`}
                 >
                   <div className={`p-6 border-b text-center rounded-t-[2rem] ${activeDay ? 'bg-orange-600 text-white shadow-lg' : 'bg-white border-slate-50 text-slate-900'}`}>
                     <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 ${activeDay ? 'text-orange-200' : 'text-slate-400'}`}>
@@ -148,7 +147,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ leads, onClose, onSele
                   <div className="flex-1 p-4 space-y-4 overflow-y-auto custom-scrollbar">
                     {meetings.length > 0 ? (
                       meetings.map(meeting => (
-                        <div 
+                        <div
                           key={meeting.id}
                           onClick={() => onSelectLead(meeting)}
                           className="group bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-orange-200/40 hover:-translate-y-1 transition-all cursor-pointer"

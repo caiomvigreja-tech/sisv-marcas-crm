@@ -11,19 +11,38 @@ export const Login: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent multiple simultaneous login attempts
+    if (loading) return;
+
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError(error.message === 'Invalid login credentials' 
-        ? 'E-mail ou senha incorretos.' 
-        : error.message);
+      if (error) {
+        // Clear password on error for security
+        setPassword('');
+
+        // Better error messages
+        if (error.message === 'Invalid login credentials') {
+          setError('E-mail ou senha incorretos.');
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          setError('Erro de conexão. Verifique sua internet e tente novamente.');
+        } else {
+          setError(error.message);
+        }
+        setLoading(false);
+      }
+    } catch (err) {
+      setPassword('');
+      setError('Erro inesperado. Tente novamente.');
       setLoading(false);
+      console.error('Login error:', err);
     }
   };
 
@@ -32,10 +51,10 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <div className="inline-block bg-white border border-slate-100 p-2 rounded-3xl shadow-sm mb-6 overflow-hidden">
-            <img 
-              src="https://www.semissosemvendas.com.br/wp-content/uploads/2022/02/favicon.png" 
-              className="w-16 h-16 object-contain" 
-              alt="SISV Logo" 
+            <img
+              src="https://www.semissosemvendas.com.br/wp-content/uploads/2022/02/favicon.png"
+              className="w-16 h-16 object-contain"
+              alt="SISV Logo"
             />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -57,8 +76,8 @@ export const Login: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2 ml-1">E-mail Corporativo</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -72,8 +91,8 @@ export const Login: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2 ml-1">Senha de Acesso</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -89,8 +108,8 @@ export const Login: React.FC = () => {
               </div>
             )}
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="w-full bg-orange-600 text-white font-bold py-4 rounded-2xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/20 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5"
             >
