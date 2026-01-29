@@ -1,0 +1,8 @@
+{
+  "name": "SISV CRM - Marcas e Patentes",
+  "description": "Um sistema de CRM especializado para gestão de registros de marcas e patentes, com fluxo Kanban, triagem técnica e automação de funil de vendas.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
