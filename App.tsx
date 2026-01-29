@@ -125,17 +125,20 @@ const App: React.FC = () => {
         setUserProfile(data);
         if (data.role !== 'admin') setFilterVendedor(data.id);
         setAuthError(null);
+        return data; // Return data for checking
       } else {
         console.error('Profile not found for user:', userId);
         setAuthError('Perfil não encontrado. Contate o suporte.');
         await supabase.auth.signOut();
         setSession(null);
+        return null;
       }
     } catch (err) {
       console.error("Erro fetch perfil:", err);
       setAuthError('Erro ao carregar perfil. Faça login novamente.');
       await supabase.auth.signOut();
       setSession(null);
+      return null;
     }
   };
 
@@ -147,26 +150,32 @@ const App: React.FC = () => {
 
     const init = async () => {
       try {
-        // Timeout de segurança: 10 segundos
+        // Timeout de segurança: 8 segundos
         timeoutId = setTimeout(() => {
           if (isMounted) {
             console.error('Auth timeout: forçando fim do loading');
             setAuthError('Tempo limite de autenticação excedido. Tente novamente.');
+            setSession(null);
+            setUserProfile(null);
             setAuthLoading(false);
           }
-        }, 10000);
+        }, 8000);
 
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session: fetchedSession }, error } = await supabase.auth.getSession();
 
         if (error) {
           throw error;
         }
 
         if (isMounted) {
-          setSession(session);
-          if (session) {
-            await fetchUserProfile(session.user.id);
+          if (fetchedSession) {
+            // Só define a sessão SE o perfil for carregado com sucesso
+            const profile = await fetchUserProfile(fetchedSession.user.id);
+            if (profile) {
+              setSession(fetchedSession);
+            }
           }
+          // Se não tiver sessão (fetchedSession null), o estado session já é null (inicial)
         }
 
         if (timeoutId) clearTimeout(timeoutId);
@@ -185,9 +194,16 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (isMounted) {
-        setSession(session);
-        if (session) await fetchUserProfile(session.user.id);
-        else setUserProfile(null);
+        // Para eventos subsequentes, mantemos a lógica, mas idealmente deveríamos proteger aqui também
+        if (session) {
+          // Aqui assumimos que se o session vier do onAuthStateChange, atualizamos
+          // Mas fetchUserProfile vai rodar e pode deslogar se falhar
+          setSession(session);
+          await fetchUserProfile(session.user.id);
+        } else {
+          setSession(null);
+          setUserProfile(null);
+        }
       }
     });
 
