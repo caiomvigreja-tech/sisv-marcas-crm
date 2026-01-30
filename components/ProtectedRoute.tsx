@@ -15,41 +15,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     useEffect(() => {
         let mounted = true;
 
-        // Timeout de segurança: 5 segundos
-        const timeout = setTimeout(() => {
-            if (mounted) {
-                console.warn('⚠️ Safety Timeout: Supabase não respondeu em 5s. Liberando app.');
-                setLoading(false);
-            }
-        }, 5000);
-
         const checkSession = async () => {
-            try {
-                console.log('🔍 Iniciando verificação de sessão...');
-                const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+            // Verificar apenas em memória já que persistência está desligada
+            const { data: { session } } = await supabase.auth.getSession();
 
-                if (error) {
-                    console.error('❌ Erro ao recuperar sessão:', error);
-                }
-
-                console.log('✅ Sessão encontrada:', currentSession ? 'Sim (Usuário: ' + currentSession.user.email + ')' : 'Não');
-
-                if (mounted) {
-                    setSession(currentSession);
-                    setLoading(false);
-                }
-            } catch (error) {
-                console.error('❌ Erro crítico checando sessão:', error);
-                if (mounted) {
-                    setLoading(false);
-                }
+            if (mounted) {
+                setSession(session);
+                setLoading(false);
             }
         };
 
         checkSession();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            console.log('🔄 Auth State Changed:', _event);
             if (mounted) {
                 setSession(session);
                 setLoading(false);
@@ -58,12 +36,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
         return () => {
             mounted = false;
-            clearTimeout(timeout);
             subscription.unsubscribe();
         };
     }, []);
-
-    console.log('Render ProtectedRoute | Loading:', loading, '| Session:', !!session);
 
     if (loading) {
         return (

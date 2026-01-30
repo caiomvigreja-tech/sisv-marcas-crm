@@ -149,30 +149,20 @@ const App: React.FC = () => {
 
     const init = async () => {
       try {
+        // Garantir limpeza total no início
+        const { error } = await supabase.auth.signOut();
+        if (error) console.log("Limpeza de sessão residual:", error.message);
 
-
-        const { data: { session: fetchedSession }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          throw error;
-        }
-
+        // Estado inicial sempre nulo
         if (isMounted) {
-          if (fetchedSession) {
-            // Só define a sessão SE o perfil for carregado com sucesso
-            const profile = await fetchUserProfile(fetchedSession.user.id);
-            if (profile) {
-              setSession(fetchedSession);
-            }
-          }
-          // Se não tiver sessão (fetchedSession null), o estado session já é null (inicial)
+          setSession(null);
+          setUserProfile(null);
+          setAuthLoading(false);
         }
 
-        if (isMounted) setAuthLoading(false);
       } catch (err) {
         console.error('Erro na inicialização:', err);
         if (isMounted) {
-          setAuthError('Erro ao inicializar aplicação. Verifique sua conexão.');
           setAuthLoading(false);
         }
       }
