@@ -37,7 +37,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, vendedor, onClick, onD
     if (diffInMins < 1) return { label: 'Agora', urgency: 'low' };
     if (diffInMins < 60) return { label: `${diffInMins}m`, urgency: 'low' };
     if (diffInHours < 24) return { label: `${diffInHours}h`, urgency: 'low' };
-    
+
     let urgency: 'low' | 'medium' | 'high' = 'low';
     if (diffInDays >= 7) urgency = 'high';
     else if (diffInDays >= 3) urgency = 'medium';
@@ -79,9 +79,9 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, vendedor, onClick, onD
           <button className="text-slate-200 hover:text-slate-400 p-1 transition-colors">
             <MoreHorizontal size={18} />
           </button>
-          
+
           {lead.statusUpdatedAt && !isWon && !isLost && (
-            <div 
+            <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-tighter transition-all ${urgencyStyles[timeInfo.urgency]}`}
               title={`Tempo neste status: ${timeInfo.label}`}
             >
@@ -115,16 +115,16 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, vendedor, onClick, onD
 
       <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <a 
-            href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '')}`} 
-            target="_blank" 
+          <a
+            href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '')}`}
+            target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="w-8 h-8 flex items-center justify-center bg-emerald-50 text-emerald-500 rounded-full hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
           >
             <MessageCircle size={16} />
           </a>
-          
+
           <div className="flex items-center" title={`Responsável: ${sellerDisplayName}`}>
             {vendedor ? (
               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-extrabold text-slate-600 border-2 border-white shadow-sm ring-1 ring-slate-100 uppercase">
@@ -137,7 +137,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, vendedor, onClick, onD
             )}
           </div>
         </div>
-        
+
         <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
           {new Date(lead.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
         </span>
