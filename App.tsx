@@ -137,7 +137,7 @@ const App: React.FC = () => {
       console.error("Erro fetch perfil:", err);
       setAuthError('Erro ao carregar perfil. Verifique sua conexão e tente novamente.');
       // await supabase.auth.signOut(); // Removed to prevent logout on network error
-      setSession(null);
+      // setSession(null);
       return null;
     }
   };
@@ -147,16 +147,37 @@ const App: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
+    // Safety valve: prevent stuck loading screen
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        console.warn("Safety timer triggered: Forcing loading completion");
+        setAuthLoading(false);
+      }
+    }, 7000);
+
     const init = async () => {
       try {
-        // Garantir limpeza total no início
-        const { error } = await supabase.auth.signOut();
-        if (error) console.log("Limpeza de sessão residual:", error.message);
+        // Garantir limpeza total no início - REMOVIDO para manter a sessão
+        // const { error } = await supabase.auth.signOut();
+        // if (error) console.log("Limpeza de sessão residual:", error.message);
 
         // Estado inicial sempre nulo
-        if (isMounted) {
-          setSession(null);
-          setUserProfile(null);
+        // if (isMounted) {
+        //   setSession(null);
+        //   setUserProfile(null);
+        //   setAuthLoading(false);
+        // }
+
+        // Nova verificação explícita de sessão inicial
+        const { data: { session } } = await supabase.auth.getSession();
+        if (isMounted && session && !userProfile) {
+          // Se houver sessão, dispara o fetch do perfil manualmente caso o listener não pegue
+          const profile = await fetchUserProfile(session.user.id);
+          if (isMounted && profile) {
+            setSession(session);
+          }
+          if (isMounted) setAuthLoading(false);
+        } else if (isMounted && !session) {
           setAuthLoading(false);
         }
 
@@ -172,21 +193,27 @@ const App: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
+      console.log("Auth Event:", event); // Debug log
 
-      if (event === 'SIGNED_OUT' || !session) {
+      if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
         setSession(null);
         setUserProfile(null);
         setAuthLoading(false);
         return;
       }
 
-      if (event === 'SIGNED_IN' || (session && !userProfile)) {
-        setAuthLoading(true);
-        const profile = await fetchUserProfile(session.user.id);
-        if (isMounted) {
-          if (profile) {
-            setSession(session);
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || (session && !userProfile)) {
+        if (!userProfile && session) {
+          setAuthLoading(true);
+          const profile = await fetchUserProfile(session.user.id);
+          if (isMounted) {
+            if (profile) {
+              setSession(session);
+            }
+            setAuthLoading(false);
           }
+        } else if (session) {
+          // Já tem perfil e sessão, só garante o loading off
           setAuthLoading(false);
         }
       } else if (event === 'TOKEN_REFRESHED') {
@@ -196,6 +223,7 @@ const App: React.FC = () => {
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, []);
