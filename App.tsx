@@ -168,17 +168,29 @@ const App: React.FC = () => {
         //   setAuthLoading(false);
         // }
 
+        // Helper para timeout
+        const fetchProfileSafe = async (uid: string) => {
+          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), 5000));
+          try {
+            return await Promise.race([fetchUserProfile(uid), timeout]);
+          } catch (e) {
+            console.error("Profile fetch timeout/error", e);
+            return null;
+          }
+        };
+
         // Nova verificação explícita de sessão inicial
         const { data: { session } } = await supabase.auth.getSession();
         if (isMounted && session && !userProfile) {
-          // Se houver sessão, dispara o fetch do perfil manualmente caso o listener não pegue
-          const profile = await fetchUserProfile(session.user.id);
-          if (isMounted && profile) {
-            setSession(session);
+          // Se houver sessão, dispara o fetch do perfil com timeout
+          const profile = await fetchProfileSafe(session.user.id);
+          if (isMounted) {
+            if (profile) setSession(session);
+            setAuthLoading(false);
           }
-          if (isMounted) setAuthLoading(false);
-        } else if (isMounted && !session) {
-          setAuthLoading(false);
+        } else if (isMounted) {
+          // Garante que sai do loading se não tiver sessão ou check falhou
+          if (!session) setAuthLoading(false);
         }
 
       } catch (err) {
@@ -202,18 +214,27 @@ const App: React.FC = () => {
         return;
       }
 
+      // Helper inline para este escopo também, ou mover para fora se preferir, 
+      // mas mantendo simples aqui para garantir o fix:
+      const fetchProfileWithTimeout = async (uid: string) => {
+        try {
+          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), 5000));
+          return await Promise.race([fetchUserProfile(uid), timeout]);
+        } catch (e) { return null; }
+      };
+
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || (session && !userProfile)) {
         if (!userProfile && session) {
           setAuthLoading(true);
-          const profile = await fetchUserProfile(session.user.id);
+          const profile = await fetchProfileWithTimeout(session.user.id);
           if (isMounted) {
             if (profile) {
               setSession(session);
             }
+            // SEMPRE destrava o loading, mesmo se falhar
             setAuthLoading(false);
           }
         } else if (session) {
-          // Já tem perfil e sessão, só garante o loading off
           setAuthLoading(false);
         }
       } else if (event === 'TOKEN_REFRESHED') {
