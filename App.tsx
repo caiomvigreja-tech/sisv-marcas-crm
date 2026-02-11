@@ -142,6 +142,13 @@ const App: React.FC = () => {
     }
   };
 
+  // Ref to track userProfile in stale closures
+  const userProfileRef = React.useRef<Vendedor | null>(null);
+
+  useEffect(() => {
+    userProfileRef.current = userProfile;
+  }, [userProfile]);
+
   // --- AUTH & SUBSCRIPTION ---
 
   useEffect(() => {
@@ -157,39 +164,25 @@ const App: React.FC = () => {
 
     const init = async () => {
       try {
-        // Garantir limpeza total no início - REMOVIDO para manter a sessão
-        // const { error } = await supabase.auth.signOut();
-        // if (error) console.log("Limpeza de sessão residual:", error.message);
-
-        // Estado inicial sempre nulo
-        // if (isMounted) {
-        //   setSession(null);
-        //   setUserProfile(null);
-        //   setAuthLoading(false);
-        // }
-
-        // Helper para timeout
-        const fetchProfileSafe = async (uid: string) => {
-          const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), 5000));
-          try {
-            return await Promise.race([fetchUserProfile(uid), timeout]);
-          } catch (e) {
-            console.error("Profile fetch timeout/error", e);
-            return null;
-          }
-        };
-
         // Nova verificação explícita de sessão inicial
         const { data: { session } } = await supabase.auth.getSession();
-        if (isMounted && session && !userProfile) {
-          // Se houver sessão, dispara o fetch do perfil com timeout
-          const profile = await fetchProfileSafe(session.user.id);
-          if (isMounted) {
-            if (profile) setSession(session);
-            setAuthLoading(false);
+        
+        // Use ref here or current state, init runs on mount so local state is fresh enough for logic below
+        // assuming no updates yet. But sticking to safe logic:
+        
+        if (isMounted && session) {
+          // Check if we already have a profile match (unlikely on fresh mount, but good habit)
+          if (!userProfileRef.current || userProfileRef.current.id !== session.user.id) {
+            const profile = await fetchUserProfile(session.user.id);
+             if (isMounted) {
+               if (profile) setSession(session);
+               setAuthLoading(false);
+             }
+          } else {
+             setAuthLoading(false);
+             setSession(session);
           }
         } else if (isMounted) {
-          // Garante que sai do loading se não tiver sessão ou check falhou
           if (!session) setAuthLoading(false);
         }
 
@@ -214,8 +207,7 @@ const App: React.FC = () => {
         return;
       }
 
-      // Helper inline para este escopo também, ou mover para fora se preferir, 
-      // mas mantendo simples aqui para garantir o fix:
+      // Helper inline para este escopo
       const fetchProfileWithTimeout = async (uid: string) => {
         try {
           const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), 5000));
@@ -223,19 +215,30 @@ const App: React.FC = () => {
         } catch (e) { return null; }
       };
 
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || (session && !userProfile)) {
-        if (!userProfile && session) {
-          setAuthLoading(true);
-          const profile = await fetchProfileWithTimeout(session.user.id);
-          if (isMounted) {
-            if (profile) {
-              setSession(session);
-            }
-            // SEMPRE destrava o loading, mesmo se falhar
-            setAuthLoading(false);
+      // USE REF TO CHECK CURRENT PROFILE STATE
+      const currentProfile = userProfileRef.current;
+      const sessionUserChanged = session && currentProfile && session.user.id !== currentProfile.id;
+      const noProfileLoaded = session && !currentProfile;
+
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || sessionUserChanged || noProfileLoaded) {
+        // Only fetch if we really need to (different user or no user loaded)
+        // If it's just a "SIGNED_IN" broadcast but we already have the correct user, ignore handling or just ensure session
+        
+        if (noProfileLoaded || sessionUserChanged) {
+          if (session) {
+             setAuthLoading(true);
+             const profile = await fetchProfileWithTimeout(session.user.id);
+             if (isMounted) {
+               if (profile) {
+                 setSession(session);
+               }
+               setAuthLoading(false);
+             }
           }
         } else if (session) {
-          setAuthLoading(false);
+          // We have a profile and it matches the session, just ensure session state is fresh
+           setSession(session);
+           setAuthLoading(false);
         }
       } else if (event === 'TOKEN_REFRESHED') {
         setSession(session);
